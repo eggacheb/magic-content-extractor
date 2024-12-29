@@ -1,4 +1,4 @@
-import { type CheerioAPI, type CheerioNode, type CheerioElement, type AnyNode, asCheerioNode, asElement } from '../types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type AnyNode, asCheerioNode, asElement } from '../@types/cheerio';
 
 export interface CleanOptions {
   removeScripts?: boolean;

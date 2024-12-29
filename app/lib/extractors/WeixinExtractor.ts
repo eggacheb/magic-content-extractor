@@ -1,5 +1,5 @@
 import { BaseExtractor } from '../BaseExtractor';
-import { type CheerioAPI, type CheerioNode, type CheerioElement, asCheerioNode, asElement } from '../../types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, asCheerioNode, asElement } from '../../@types/cheerio';
 import { WEIXIN_SELECTORS } from '../../types/extractor';
 
 export class WeixinExtractor extends BaseExtractor {

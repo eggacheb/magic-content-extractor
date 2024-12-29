@@ -1,4 +1,4 @@
-import { type CheerioAPI, type CheerioNode, type CheerioElement, asCheerioNode, asElement } from '../types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, asCheerioNode, asElement } from '../@types/cheerio';
 import { cleanHtml, calculateTextLength, isMediaNode, hasVisibleContent, hasValidLinks, scoreElement, normalizeText, normalizeMedia } from './extractor';
 
 export interface ReadabilityOptions {
