@@ -1,4 +1,5 @@
-import type { CheerioAPI, AnyNode } from 'cheerio';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 import { calculateSimilarity } from '../../utils/similarity';
 
 // 元数据选择器
@@ -86,7 +87,7 @@ export class TitleExtractor {
     
     // 按优先级查找标题元素
     ['h1', 'h2', 'h3'].forEach(tag => {
-      $(tag).each((_: number, element: AnyNode) => {
+      $(tag).each((_: number, element: Node) => {
         const text = $(element).text();
         const cleanedText = this.cleanTitle(text);
         if (cleanedText && !titles.includes(cleanedText)) {

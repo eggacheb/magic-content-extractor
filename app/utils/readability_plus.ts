@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI, AnyNode, Cheerio } from '@types/cheerio';
+import type { CheerioAPI, AnyNode, Cheerio } from 'cheerio';
+import type { Element } from 'domhandler';
 import { defaultConfig } from '../config/extractor';
 import {
   calculateTextLength,

@@ -1,10 +1,7 @@
-import { CheerioAPI as BaseCheerioAPI, Cheerio as BaseCheerio, AnyNode as BaseAnyNode, Element as BaseElement } from '@types/cheerio';
+import type { CheerioAPI, Cheerio, Element, AnyNode } from 'cheerio';
 
 declare module 'cheerio' {
-  export interface CheerioAPI extends BaseCheerioAPI {}
-  export interface Cheerio<T> extends BaseCheerio<T> {}
-  export interface AnyNode extends BaseAnyNode {}
-  export interface Element extends BaseElement {}
+  export { CheerioAPI, Cheerio, Element, AnyNode };
   export type Root = CheerioAPI;
   
   export function load(

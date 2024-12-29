@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI, AnyNode, Cheerio } from 'cheerio';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 import { ExtractResult, ExtractorOptions, CONTENT_SELECTORS, NOISE_SELECTORS } from '../types/extractor';
 import { calculateTextLength, cleanHtml, scoreElement } from '../utils/extractor';
 import { TitleExtractor } from './extractors/TitleExtractor';
@@ -8,7 +9,7 @@ export class BaseExtractor {
   protected options: Required<ExtractorOptions>;
   protected $!: CheerioAPI;
   private titleExtractor: TitleExtractor;
-  private droppedNodes: Set<AnyNode>;
+  private droppedNodes: Set<Element>;
   
   constructor(options: ExtractorOptions = {}) {
     this.options = {
@@ -88,7 +89,7 @@ export class BaseExtractor {
   protected removeNoiseNodes(): void {
     // 移除通用噪音
     NOISE_SELECTORS.forEach(selector => {
-      this.$(selector).each((_: number, elem: AnyNode) => {
+      this.$(selector).each((_: number, elem: Element) => {
         if (!this.shouldKeepNode(elem)) {
           this.removeNode(elem);
         }
@@ -102,7 +103,7 @@ export class BaseExtractor {
     this.$('div:empty, p:empty, span:empty').remove();
   }
   
-  protected shouldKeepNode(node: AnyNode): boolean {
+  protected shouldKeepNode(node: Element): boolean {
     const $ = this.$;
     const $node = $(node);
     
@@ -122,7 +123,7 @@ export class BaseExtractor {
     return false;
   }
   
-  protected removeNode(node: AnyNode): void {
+  protected removeNode(node: Element): void {
     const $ = this.$;
     const $node = $(node);
     
@@ -145,7 +146,7 @@ export class BaseExtractor {
     
     do {
       removed = false;
-      $('*').each((_: number, elem: AnyNode) => {
+      $('*').each((_: number, elem: Element) => {
         const $elem = $(elem);
         if (
           !$elem.contents().length && 
@@ -158,7 +159,7 @@ export class BaseExtractor {
     } while (removed);
   }
   
-  protected isPreservableNode(node: AnyNode): boolean {
+  protected isPreservableNode(node: Element): boolean {
     return ['img', 'video', 'iframe', 'embed'].includes(node.tagName?.toLowerCase() || '');
   }
   
@@ -166,7 +167,7 @@ export class BaseExtractor {
     const $ = this.$;
     
     // 规范化空白字符
-    $('*').contents().each((_: number, node: AnyNode) => {
+    $('*').contents().each((_: number, node: Element) => {
       if (node.type === 'text') {
         const text = $(node).text();
         if (text.trim()) {
@@ -176,7 +177,7 @@ export class BaseExtractor {
     });
     
     // 合并相邻的文本节点
-    $('*').contents().each((_: number, node: AnyNode) => {
+    $('*').contents().each((_: number, node: Element) => {
       if (node.next && node.type === 'text' && node.next.type === 'text') {
         node.data = `${node.data} ${node.next.data}`.trim();
         $(node.next).remove();
@@ -194,8 +195,8 @@ export class BaseExtractor {
   /**
    * 提取主要内容
    */
-  protected extractMainContent(): AnyNode {
-    let bestElement: AnyNode | null = null;
+  protected extractMainContent(): Element {
+    let bestElement: Element | null = null;
     let bestScore = -1;
     
     // 尝试预定义选择器
@@ -205,7 +206,7 @@ export class BaseExtractor {
     }
     
     // 使用评分系统
-    this.$('body *').each((_: number, elem: AnyNode) => {
+    this.$('body *').each((_: number, elem: Element) => {
       if (this.isValidContent(elem)) {
         const score = this.calculateContentScore(elem);
         if (score > bestScore) {
@@ -218,7 +219,7 @@ export class BaseExtractor {
     return bestElement || this.$('body')[0];
   }
   
-  protected findBySelectors(): AnyNode | null {
+  protected findBySelectors(): Element | null {
     const selectors = [...CONTENT_SELECTORS, ...this.getCustomSelectors()];
     
     for (const selector of selectors) {
@@ -231,7 +232,7 @@ export class BaseExtractor {
     return null;
   }
   
-  protected calculateContentScore(element: AnyNode): number {
+  protected calculateContentScore(element: Element): number {
     const $ = this.$;
     const $elem = $(element);
     let score = scoreElement($, element);
@@ -263,7 +264,7 @@ export class BaseExtractor {
   /**
    * 验证内容是否有效
    */
-  protected isValidContent(element: AnyNode): boolean {
+  protected isValidContent(element: Element): boolean {
     const $ = this.$;
     const $elem = $(element);
     
@@ -308,7 +309,7 @@ export class BaseExtractor {
   /**
    * 后处理
    */
-  protected postProcess(element: AnyNode): void {
+  protected postProcess(element: Element): void {
     const $ = this.$;
     const $elem = $(element);
     
@@ -316,7 +317,7 @@ export class BaseExtractor {
     $elem.find('script, style, link').remove();
     
     // 规范化图片
-    $elem.find('img').each((_: number, img: AnyNode) => {
+    $elem.find('img').each((_: number, img: Element) => {
       const $img = $(img);
       const src = $img.attr('src');
       if (src) {
@@ -330,7 +331,7 @@ export class BaseExtractor {
     });
     
     // 规范化链接
-    $elem.find('a').each((_: number, link: AnyNode) => {
+    $elem.find('a').each((_: number, link: Element) => {
       const $link = $(link);
       if (!$link.attr('href')) {
         $link.removeAttr('href');

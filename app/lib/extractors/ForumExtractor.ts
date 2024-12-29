@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI, AnyNode, Cheerio } from 'cheerio';
+import type { CheerioAPI } from 'cheerio';
+import type { Element } from 'domhandler';
 import { BaseExtractor } from '../BaseExtractor';
 import { ExtractResult, FORUM_SELECTORS } from '../../types/extractor';
 

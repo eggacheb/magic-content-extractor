@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI, AnyNode, Cheerio } from '@types/cheerio';
+import type { CheerioAPI, AnyNode } from 'cheerio';
+import type { Element, Node } from 'domhandler';
 import { CleanOptions } from '../types/extractor';
 
 /**
@@ -39,7 +40,7 @@ export function cleanHtml($: CheerioAPI, options: CleanOptions = {}): void {
   
   // 移除注释
   if (removeComments) {
-    $('*').contents().each((index: number, node: AnyNode) => {
+    $('*').contents().each((index: number, node: Node) => {
       if (node.type === 'comment') {
         $(node).remove();
       }
@@ -58,7 +59,7 @@ export function cleanHtml($: CheerioAPI, options: CleanOptions = {}): void {
   }
   
   // 清理空白节点
-  $('*').each((index: number, elem: AnyNode) => {
+  $('*').each((index: number, elem: Node) => {
     const $elem = $(elem);
     if (!$elem.contents().length && !isPreservableNode(elem)) {
       $elem.remove();
@@ -69,14 +70,14 @@ export function cleanHtml($: CheerioAPI, options: CleanOptions = {}): void {
 /**
  * 检查节点是否应该保留
  */
-export function isPreservableNode(node: AnyNode): boolean {
+export function isPreservableNode(node: Node): boolean {
   return ['img', 'video', 'iframe', 'embed'].includes(node.tagName?.toLowerCase() || '');
 }
 
 /**
  * 检查节点是否是空的
  */
-export function isEmptyNode(node: AnyNode, $: CheerioAPI): boolean {
+export function isEmptyNode(node: Node, $: CheerioAPI): boolean {
   const $node = $(node);
   return !$node.children().length && !$node.text().trim();
 }
@@ -84,7 +85,7 @@ export function isEmptyNode(node: AnyNode, $: CheerioAPI): boolean {
 /**
  * 检查节点是否包含有效内容
  */
-export function hasValidContent(node: AnyNode, $: CheerioAPI, minTextLength: number = 25): boolean {
+export function hasValidContent(node: Node, $: CheerioAPI, minTextLength: number = 25): boolean {
   const $node = $(node);
   
   // 检查是否包含多媒体内容
@@ -106,7 +107,7 @@ export function hasValidContent(node: AnyNode, $: CheerioAPI, minTextLength: num
 /**
  * 计算链接密度
  */
-export function calculateLinkDensity(node: AnyNode, $: CheerioAPI): number {
+export function calculateLinkDensity(node: Node, $: CheerioAPI): number {
   const $node = $(node);
   const text = $node.text().trim();
   const linkText = $node.find('a').text().trim();
@@ -118,7 +119,7 @@ export function calculateLinkDensity(node: AnyNode, $: CheerioAPI): number {
 /**
  * 计算节点得分
  */
-export function scoreElement($: CheerioAPI, element: AnyNode): number {
+export function scoreElement($: CheerioAPI, element: Node): number {
   const $elem = $(element);
   let score = 0;
   
@@ -221,11 +222,11 @@ export function scoreElement($: CheerioAPI, element: AnyNode): number {
 /**
  * 规范化HTML
  */
-export function normalizeHtml($: CheerioAPI, element: AnyNode): void {
+export function normalizeHtml($: CheerioAPI, element: Node): void {
   const $elem = $(element);
   
   // 规范化空白字符
-  $elem.contents().each((index: number, node: AnyNode) => {
+  $elem.contents().each((index: number, node: Node) => {
     if (node.type === 'text') {
       const text = $(node).text();
       if (text.trim()) {
@@ -235,7 +236,7 @@ export function normalizeHtml($: CheerioAPI, element: AnyNode): void {
   });
   
   // 合并相邻的文本节点
-  $elem.contents().each((index: number, node: AnyNode) => {
+  $elem.contents().each((index: number, node: Node) => {
     if (node.next && node.type === 'text' && node.next.type === 'text') {
       node.data = `${node.data} ${node.next.data}`.trim();
       $(node.next).remove();
@@ -243,7 +244,7 @@ export function normalizeHtml($: CheerioAPI, element: AnyNode): void {
   });
   
   // 规范化图片
-  $elem.find('img').each((index: number, img: AnyNode) => {
+  $elem.find('img').each((index: number, img: Node) => {
     const $img = $(img);
     $img.attr('loading', 'lazy');
     if (!$img.attr('alt')) {
@@ -252,7 +253,7 @@ export function normalizeHtml($: CheerioAPI, element: AnyNode): void {
   });
   
   // 规范化链接
-  $elem.find('a').each((index: number, link: AnyNode) => {
+  $elem.find('a').each((index: number, link: Node) => {
     const $link = $(link);
     if (!$link.attr('href')) {
       $link.removeAttr('href');
@@ -264,13 +265,13 @@ export function normalizeHtml($: CheerioAPI, element: AnyNode): void {
   });
   
   // 规范化表格
-  $elem.find('table').each((index: number, table: AnyNode) => {
+  $elem.find('table').each((index: number, table: Node) => {
     const $table = $(table);
     
     // 添加thead
     if (!$table.find('thead').length && $table.find('tr').length) {
       const $firstRow = $table.find('tr').first();
-      $firstRow.find('td').each((index: number, cell: AnyNode) => {
+      $firstRow.find('td').each((index: number, cell: Node) => {
         const $cell = $(cell);
         $cell.replaceWith(`<th>${$cell.html()}</th>`);
       });
