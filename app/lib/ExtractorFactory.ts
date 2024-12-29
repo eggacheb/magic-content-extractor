@@ -1,49 +1,77 @@
-import { BaseExtractor } from './BaseExtractor';
 import { ArticleExtractor } from './extractors/ArticleExtractor';
-import { WeixinExtractor } from './extractors/WeixinExtractor';
 import { ForumExtractor } from './extractors/ForumExtractor';
-import { ExtractorOptions } from '../types/extractor';
+import { TitleExtractor } from './extractors/TitleExtractor';
+import { WeixinExtractor } from './extractors/WeixinExtractor';
+import { BaseExtractor } from './BaseExtractor';
+import { WebsiteType } from '../types/extractor';
 
 export class ExtractorFactory {
-  private static extractors: BaseExtractor[] = [];
-  private static defaultExtractor: BaseExtractor;
+  private static extractors: Map<string, BaseExtractor> = new Map();
 
   /**
-   * 初始化提取器工厂
+   * 获取提取器实例
+   * @param type 网站类型
+   * @returns 对应的提取器实例
    */
-  public static init(options: ExtractorOptions = {}): void {
-    // 创建提取器实例
-    this.extractors = [
-      new WeixinExtractor(),   // 微信文章优先级最高
-      new ForumExtractor(),    // 论坛内容次之
-      new ArticleExtractor(),  // 普通文章最后
-    ];
-
-    // 设置默认提取器
-    this.defaultExtractor = new BaseExtractor(options);
-  }
-
-  /**
-   * 获取适合的提取器
-   */
-  public static getExtractor(url: string): BaseExtractor {
-    // 如果提取器列表为空，先初始化
-    if (this.extractors.length === 0) {
-      this.init();
+  public static getExtractor(type: WebsiteType): BaseExtractor {
+    // 检查缓存
+    if (this.extractors.has(type)) {
+      return this.extractors.get(type)!;
     }
 
-    // 查找能处理该URL的提取器
-    const extractor = this.extractors.find(e => e.canHandle(url));
-    
-    // 如果没有找到合适的提取器，返回默认提取器
-    return extractor || this.defaultExtractor;
+    // 创建新实例
+    let extractor: BaseExtractor;
+    switch (type) {
+      case 'article':
+        extractor = new ArticleExtractor();
+        break;
+      case 'forum':
+        extractor = new ForumExtractor();
+        break;
+      case 'weixin':
+        extractor = new WeixinExtractor();
+        break;
+      default:
+        throw new Error(`Unsupported extractor type: ${type}`);
+    }
+
+    // 缓存实例
+    this.extractors.set(type, extractor);
+    return extractor;
   }
 
   /**
-   * 提取内容
+   * 根据URL自动判断并获取合适的提取器
+   * @param url 网页URL
+   * @returns 合适的提取器实例
    */
-  public static async extract(html: string, url: string) {
-    const extractor = this.getExtractor(url);
-    return await extractor.extract(html, url);
+  public static getExtractorByUrl(url: string): BaseExtractor {
+    // 微信文章
+    if (url.includes('mp.weixin.qq.com')) {
+      return this.getExtractor('weixin');
+    }
+    
+    // 论坛特征
+    if (url.includes('forum') || url.includes('bbs') || url.includes('thread')) {
+      return this.getExtractor('forum');
+    }
+
+    // 默认使用文章提取器
+    return this.getExtractor('article');
+  }
+
+  /**
+   * 获取标题提取器
+   * @returns 标题提取器实例
+   */
+  public static getTitleExtractor(): TitleExtractor {
+    return new TitleExtractor();
+  }
+
+  /**
+   * 清除提取器缓存
+   */
+  public static clearCache(): void {
+    this.extractors.clear();
   }
 } 

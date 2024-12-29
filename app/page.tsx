@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, Copy, Check, Github, MessageSquare, Volume2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -190,7 +191,7 @@ export default function Home() {
                   </div>
                 )}
                 <div className="prose prose-gray max-w-none">
-                  {result.content}
+                  <ReactMarkdown>{result.content}</ReactMarkdown>
                 </div>
               </div>
             )}
