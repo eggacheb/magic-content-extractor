@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { type CheerioAPI, type CheerioNode, type CheerioElement, type Cheerio, asCheerioNode, asElement } from '@/types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type Cheerio, asCheerioNode, asElement } from '../../types/cheerio';
 import { BaseExtractor } from '../BaseExtractor';
 import { ExtractResult } from '../../types/extractor';
 import { cleanHtml } from '../../utils/extractor';

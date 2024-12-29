@@ -20,18 +20,31 @@ export type {
 // 工具类型
 export type CheerioSelector = string | Cheerio<CheerioElement> | CheerioElement | CheerioElement[];
 
-// 扩展 Node 类型
-export interface CheerioNode extends Node {
-  type?: string;
-  data?: string;
-  next?: CheerioNode;
-  prev?: CheerioNode;
-  parent?: CheerioNode;
-  children?: CheerioNode[];
+// 基本的 Cheerio 节点类型
+export interface CheerioNode {
+  // 节点类型
+  type: 'tag' | 'text' | 'comment' | 'script' | 'style' | 'cdata';
+  // 节点名称
+  name: string;
+  // 标签名称 (用于元素节点)
   tagName?: string;
-  attribs?: { [key: string]: string };
-  name?: string;
+  // 节点数据 (用于文本和注释节点)
+  data?: string;
+  // 节点值
+  nodeValue: string | null;
+  // 属性
+  attribs: { [key: string]: string };
+  // DOM 属性别名
   attributes?: { [key: string]: string };
+  // 节点关系
+  parent: CheerioNode | null;
+  prev: CheerioNode | null;
+  next: CheerioNode | null;
+  // 子节点
+  children: CheerioNode[];
+  childNodes: CheerioNode[];
+  firstChild: CheerioNode | null;
+  lastChild: CheerioNode | null;
 }
 
 // 类型转换函数

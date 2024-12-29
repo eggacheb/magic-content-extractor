@@ -1,5 +1,5 @@
 import { BaseExtractor } from '../BaseExtractor';
-import { type CheerioAPI, type CheerioNode, type CheerioElement, type Cheerio, asCheerioNode, asElement } from '@/types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type Cheerio, asCheerioNode, asElement } from '../../types/cheerio';
 import { FORUM_SELECTORS } from '../../types/extractor';
 
 interface ForumPost {
