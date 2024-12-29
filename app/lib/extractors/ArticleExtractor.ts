@@ -1,6 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI } from 'cheerio';
-import type { Element } from 'domhandler';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type Cheerio, asCheerioNode, asElement } from '../../types/cheerio';
 import { BaseExtractor } from '../BaseExtractor';
 import { ExtractResult } from '../../types/extractor';
 import { cleanHtml } from '../../utils/extractor';
@@ -51,9 +50,9 @@ export class ArticleExtractor extends BaseExtractor {
     this.postProcess(mainContent);
     
     // 获取内容
-    const content = this.$(mainContent);
-    const textContent = content.text().trim();
-    const htmlContent = content.html() || '';
+    const $content = this.$(asElement(mainContent));
+    const textContent = $content.text().trim();
+    const htmlContent = $content.html() || '';
 
     return {
       title,
@@ -135,22 +134,12 @@ export class ArticleExtractor extends BaseExtractor {
     }
   }
 
-  protected postProcess(element: AnyNode): void {
+  protected postProcess(element: CheerioNode): void {
     super.postProcess(element);
     
-    const $ = this.$;
-    const $elem = $(element);
+    const $elem = this.$(asElement(element));
     
-    // 移除文章底部的推荐阅读
-    $elem.find('.related-posts, .recommended-posts').remove();
-    
-    // 移除分享按钮
-    $elem.find('.share-buttons, .social-share').remove();
-    
-    // 移除文章底部的订阅提示
-    $elem.find('.subscribe-form, .newsletter-signup').remove();
-    
-    // 规范化标题层级
+    // 规范化标题
     this.normalizeHeadings($elem);
     
     // 规范化列表
@@ -160,51 +149,47 @@ export class ArticleExtractor extends BaseExtractor {
     this.normalizeTables($elem);
   }
 
-  private normalizeHeadings($elem: Cheerio<AnyNode>): void {
-    const headings = $elem.find('h1, h2, h3, h4, h5, h6').toArray();
-    let lastLevel = 1;
+  private normalizeHeadings($elem: Cheerio<CheerioElement>): void {
+    const $ = this.$;
+    const headings = $elem.find('h1, h2, h3, h4, h5, h6');
     
-    headings.forEach(heading => {
-      const currentLevel = parseInt(heading.tagName.slice(1));
-      if (currentLevel - lastLevel > 1) {
-        // 调整标题层级
-        const newLevel = lastLevel + 1;
-        const $heading = this.$(heading);
-        $heading.replaceWith(`<h${newLevel}>${$heading.html()}</h${newLevel}>`);
-      }
-      lastLevel = currentLevel;
-    });
-  }
-
-  private normalizeLists($elem: Cheerio<AnyNode>): void {
-    // 确保列表项都在列表容器中
-    $elem.find('li').each((_: number, li: AnyNode) => {
-      const $li = this.$(li);
-      if (!$li.parent().is('ul, ol')) {
-        $li.wrap('<ul>');
-      }
-    });
-  }
-
-  private normalizeTables($elem: Cheerio<AnyNode>): void {
-    // 确保表格都有thead和tbody
-    $elem.find('table').each((_: number, table: AnyNode) => {
-      const $table = this.$(table);
+    headings.each((_: number, heading: CheerioElement) => {
+      const node = asCheerioNode(heading);
+      const $heading = $(heading);
+      const level = parseInt(node.tagName?.[1] || '1', 10);
       
-      // 添加thead
-      if (!$table.find('thead').length && $table.find('tr').length) {
-        const $firstRow = $table.find('tr').first();
-        $firstRow.find('td').each((_: number, cell: AnyNode) => {
-          const $cell = this.$(cell);
+      if (level > 2) {
+        $heading.replaceWith(`<h${Math.min(level + 1, 6)}>${$heading.html()}</h${Math.min(level + 1, 6)}>`);
+      }
+    });
+  }
+
+  private normalizeLists($elem: Cheerio<CheerioElement>): void {
+    const $ = this.$;
+    
+    $elem.find('li').each((_: number, li: CheerioElement) => {
+      const $li = $(li);
+      const text = $li.text().trim();
+      
+      if (text.length < 10) {
+        $li.remove();
+      }
+    });
+  }
+
+  private normalizeTables($elem: Cheerio<CheerioElement>): void {
+    const $ = this.$;
+    
+    $elem.find('table').each((_: number, table: CheerioElement) => {
+      const $table = $(table);
+      const $rows = $table.find('tr');
+      
+      if ($rows.length > 0) {
+        const $firstRow = $($rows[0]);
+        $firstRow.find('td').each((_: number, cell: CheerioElement) => {
+          const $cell = $(cell);
           $cell.replaceWith(`<th>${$cell.html()}</th>`);
         });
-        $firstRow.wrap('<thead>');
-      }
-      
-      // 添加tbody
-      const $tbody = $table.find('tbody');
-      if (!$tbody.length) {
-        $table.find('tr:not(thead tr)').wrapAll('<tbody>');
       }
     });
   }

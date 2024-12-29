@@ -19,12 +19,15 @@ export async function GET(request: Request) {
     const response = await fetch(targetUrl);
     const html = await response.text();
 
-    // 使用提取器工厂获取合适的提取器
-    const extractor = ExtractorFactory.getExtractor(targetUrl, {
+    // 初始化提取器工厂并设置配置选项
+    ExtractorFactory.init({
       minTextLength: 25,
       retryLength: 250,
       includeComments: false
     });
+
+    // 使用提取器工厂获取合适的提取器
+    const extractor = ExtractorFactory.getExtractor(targetUrl);
 
     const result = await extractor.extract(html, targetUrl);
 

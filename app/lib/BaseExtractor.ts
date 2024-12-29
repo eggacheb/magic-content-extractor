@@ -1,6 +1,5 @@
 import * as cheerio from 'cheerio';
-import type { CheerioAPI } from 'cheerio';
-import type { Element } from 'domhandler';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type AnyNode, asCheerioNode, asElement } from '../types/cheerio';
 import { ExtractResult, ExtractorOptions, CONTENT_SELECTORS, NOISE_SELECTORS } from '../types/extractor';
 import { calculateTextLength, cleanHtml, scoreElement } from '../utils/extractor';
 import { TitleExtractor } from './extractors/TitleExtractor';
@@ -9,7 +8,7 @@ export class BaseExtractor {
   protected options: Required<ExtractorOptions>;
   protected $!: CheerioAPI;
   private titleExtractor: TitleExtractor;
-  private droppedNodes: Set<Element>;
+  private droppedNodes: Set<CheerioNode>;
   
   constructor(options: ExtractorOptions = {}) {
     this.options = {
@@ -35,8 +34,8 @@ export class BaseExtractor {
    */
   public async extract(html: string, url: string): Promise<ExtractResult> {
     this.$ = cheerio.load(html, {
-      decodeEntities: true,
-      normalizeWhitespace: true
+      normalizeWhitespace: true,
+      decodeEntities: true
     });
     
     // 清理文档
@@ -51,16 +50,16 @@ export class BaseExtractor {
     // 后处理
     this.postProcess(mainContent);
     
-    // 获取内容
-    const content = this.$(mainContent);
-    const textContent = content.text().trim();
-    const htmlContent = content.html() || '';
-
+    // 获取处理后的内容
+    const $content = this.$(asElement(mainContent));
+    const content = $content.html() || '';
+    const textContent = $content.text().trim();
+    
     return {
       title,
-      content: htmlContent,
+      content,
       textContent,
-      html: htmlContent,
+      html,
       url
     };
   }
@@ -69,19 +68,10 @@ export class BaseExtractor {
    * 清理文档
    */
   protected cleanDocument(): void {
-    // 基础清理
-    cleanHtml(this.$, {
-      removeScripts: true,
-      removeStyles: true,
-      removeComments: !this.options.includeComments
-    });
-    
-    // 移除噪音元素
+    // 移除噪音节点
     this.removeNoiseNodes();
-    
     // 清理空节点
     this.cleanEmptyNodes();
-    
     // 规范化内容
     this.normalizeContent();
   }
@@ -89,9 +79,10 @@ export class BaseExtractor {
   protected removeNoiseNodes(): void {
     // 移除通用噪音
     NOISE_SELECTORS.forEach(selector => {
-      this.$(selector).each((_: number, elem: Element) => {
-        if (!this.shouldKeepNode(elem)) {
-          this.removeNode(elem);
+      this.$(selector).each((_: number, elem: CheerioElement) => {
+        const node = asCheerioNode(elem);
+        if (!this.shouldKeepNode(node)) {
+          this.removeNode(node);
         }
       });
     });
@@ -103,9 +94,9 @@ export class BaseExtractor {
     this.$('div:empty, p:empty, span:empty').remove();
   }
   
-  protected shouldKeepNode(node: Element): boolean {
+  protected shouldKeepNode(node: CheerioNode): boolean {
     const $ = this.$;
-    const $node = $(node);
+    const $node = $(asElement(node));
     
     // 检查是否包含重要内容
     if ($node.find('img, video, iframe').length > 0) {
@@ -123,221 +114,154 @@ export class BaseExtractor {
     return false;
   }
   
-  protected removeNode(node: Element): void {
-    const $ = this.$;
-    const $node = $(node);
-    
-    // 保存有价值的文本内容
-    const tail = $node.next().text().trim();
-    if (tail) {
-      $node.after(` ${tail}`);
-    }
-    
-    // 记录被移除的节点
-    this.droppedNodes.add(node);
-    
-    // 移除节点
-    $node.remove();
-  }
-  
   protected cleanEmptyNodes(): void {
     const $ = this.$;
-    let removed: boolean;
     
-    do {
-      removed = false;
-      $('*').each((_: number, elem: Element) => {
-        const $elem = $(elem);
-        if (
-          !$elem.contents().length && 
-          !this.isPreservableNode(elem)
-        ) {
-          $elem.remove();
-          removed = true;
-        }
-      });
-    } while (removed);
-  }
-  
-  protected isPreservableNode(node: Element): boolean {
-    return ['img', 'video', 'iframe', 'embed'].includes(node.tagName?.toLowerCase() || '');
+    $('*').each(function(this: AnyNode) {
+      const $elem = $(this);
+      const text = $elem.text().trim();
+      
+      if (!text && !$elem.find('img, video, iframe').length) {
+        $elem.remove();
+      }
+    });
   }
   
   protected normalizeContent(): void {
     const $ = this.$;
     
     // 规范化空白字符
-    $('*').contents().each((_: number, node: Element) => {
+    $('*').contents().each(function(this: AnyNode) {
+      const node = asCheerioNode(this);
       if (node.type === 'text') {
-        const text = $(node).text();
-        if (text.trim()) {
-          node.data = text.replace(/\s+/g, ' ').trim();
-        }
+        const text = $(this).text();
+        node.data = text.replace(/\s+/g, ' ').trim();
       }
     });
     
     // 合并相邻的文本节点
-    $('*').contents().each((_: number, node: Element) => {
+    $('*').contents().each(function(this: AnyNode) {
+      const node = asCheerioNode(this);
       if (node.next && node.type === 'text' && node.next.type === 'text') {
         node.data = `${node.data} ${node.next.data}`.trim();
-        $(node.next).remove();
+        $(asElement(node.next)).remove();
       }
     });
   }
   
-  /**
-   * 提取标题
-   */
   protected extractTitle(): string {
     return this.titleExtractor.extract(this.$);
   }
   
-  /**
-   * 提取主要内容
-   */
-  protected extractMainContent(): Element {
-    let bestElement: Element | null = null;
-    let bestScore = -1;
-    
-    // 尝试预定义选择器
-    const element = this.findBySelectors();
-    if (element) {
-      return element;
-    }
-    
-    // 使用评分系统
-    this.$('body *').each((_: number, elem: Element) => {
-      if (this.isValidContent(elem)) {
-        const score = this.calculateContentScore(elem);
-        if (score > bestScore) {
-          bestScore = score;
-          bestElement = elem;
-        }
-      }
-    });
-    
-    return bestElement || this.$('body')[0];
-  }
-  
-  protected findBySelectors(): Element | null {
-    const selectors = [...CONTENT_SELECTORS, ...this.getCustomSelectors()];
-    
-    for (const selector of selectors) {
-      const element = this.$(selector).first();
-      if (element.length && this.isValidContent(element[0])) {
-        return element[0];
+  protected extractMainContent(): CheerioNode {
+    // 尝试使用自定义选择器
+    const customSelectors = this.getCustomSelectors();
+    for (const selector of customSelectors) {
+      const element = this.$(selector);
+      if (element.length && this.isValidContent(asCheerioNode(element.get(0) as CheerioElement))) {
+        return asCheerioNode(element.get(0) as CheerioElement);
       }
     }
     
-    return null;
+    // 尝试使用通用选择器
+    for (const selector of CONTENT_SELECTORS) {
+      const element = this.$(selector);
+      if (element.length && this.isValidContent(asCheerioNode(element.get(0) as CheerioElement))) {
+        return asCheerioNode(element.get(0) as CheerioElement);
+      }
+    }
+    
+    // 如果没有找到合适的内容,返回body
+    return asCheerioNode(this.$('body').get(0) as CheerioElement);
   }
   
-  protected calculateContentScore(element: Element): number {
+  protected getCustomSelectors(): string[] {
+    return [];
+  }
+  
+  protected isValidContent(element: CheerioNode): boolean {
     const $ = this.$;
-    const $elem = $(element);
-    let score = scoreElement($, element);
+    const $elem = $(asElement(element));
     
-    // 根据标签调整分数
+    // 检查标签名
+    if (!element.tagName) return false;
     const tagName = element.tagName.toLowerCase();
-    if (['article', 'main', 'section'].includes(tagName)) {
-      score *= 1.5;
-    }
     
-    // 根据类名和ID调整分数
-    const classAndId = `${$elem.attr('class')} ${$elem.attr('id')}`.toLowerCase();
-    if (/article|content|post|main/g.test(classAndId)) {
-      score *= 1.2;
-    }
-    if (/comment|meta|footer|sidebar/g.test(classAndId)) {
-      score *= 0.8;
-    }
-    
-    // 根据文本密度调整分数
-    const textLength = calculateTextLength($elem.text());
-    const linkLength = calculateTextLength($elem.find('a').text());
-    const linkDensity = linkLength / (textLength || 1);
-    score *= (1 - linkDensity);
-    
-    return score;
-  }
-  
-  /**
-   * 验证内容是否有效
-   */
-  protected isValidContent(element: Element): boolean {
-    const $ = this.$;
-    const $elem = $(element);
-    
-    // 检查是否是无效标签
-    const invalidTags = ['nav', 'aside', 'footer', 'header'];
-    if (invalidTags.includes(element.tagName?.toLowerCase() || '')) {
+    // 排除不合适的标签
+    const excludeTags = ['nav', 'header', 'footer', 'aside'];
+    if (excludeTags.includes(tagName)) {
       return false;
     }
     
-    // 检查文本长度
-    const text = $elem.text();
-    const textLength = calculateTextLength(text);
+    // 检查文本长度和链接密度
+    const text = $elem.text().trim();
+    const textLength = calculateTextLength($, element);
+    const linkNode = $elem.find('a').get(0);
+    const linkLength = linkNode ? calculateTextLength($, asCheerioNode(linkNode as CheerioElement)) : 0;
+    
     if (textLength < this.options.minTextLength) {
       return false;
     }
     
-    // 检查链接密度
-    const linkText = $elem.find('a').text();
-    const linkLength = calculateTextLength(linkText);
-    const linkDensity = linkLength / (textLength || 1);
+    const linkDensity = linkLength / textLength;
     if (linkDensity > 0.5) {
-      return false;
-    }
-    
-    // 检查图片数量
-    const imageCount = $elem.find('img').length;
-    const density = textLength / (imageCount || 1);
-    if (density < 100 && textLength < 200) {
       return false;
     }
     
     return true;
   }
   
-  /**
-   * 获取自定义选择器
-   */
-  protected getCustomSelectors(): string[] {
-    return [];
+  protected removeNode(node: CheerioNode): void {
+    const $ = this.$;
+    const $elem = $(asElement(node));
+    
+    // 检查是否已经被移除
+    if (this.droppedNodes.has(node)) {
+      return;
+    }
+    
+    // 检查文本内容
+    const text = $elem.text().trim();
+    const textLength = calculateTextLength($, node);
+    
+    // 检查链接密度
+    const linkText = $elem.find('a').text().trim();
+    const linkNode = $elem.find('a').get(0);
+    const linkLength = linkNode ? calculateTextLength($, asCheerioNode(linkNode as CheerioElement)) : 0;
+    const linkDensity = linkLength / textLength;
+    
+    // 如果链接密度过高或文本长度过短,移除节点
+    if (linkDensity > 0.5 || textLength < this.options.minTextLength) {
+      $elem.remove();
+      this.droppedNodes.add(node);
+    }
   }
   
-  /**
-   * 后处理
-   */
-  protected postProcess(element: Element): void {
+  protected postProcess(element: CheerioNode): void {
     const $ = this.$;
-    const $elem = $(element);
+    const $elem = $(asElement(element));
     
-    // 清理最终内容中的冗余元素
-    $elem.find('script, style, link').remove();
+    // 移除空节点
+    $elem.find('*:empty').remove();
     
-    // 规范化图片
-    $elem.find('img').each((_: number, img: Element) => {
+    // 处理图片
+    $elem.find('img').each((_: number, img: CheerioElement) => {
       const $img = $(img);
       const src = $img.attr('src');
-      if (src) {
-        $img.attr('loading', 'lazy');
-        if (!$img.attr('alt')) {
-          $img.attr('alt', '');
-        }
-      } else {
-        $img.remove();
+      const dataSrc = $img.attr('data-src');
+      
+      if (!src && dataSrc) {
+        $img.attr('src', dataSrc);
       }
     });
     
-    // 规范化链接
-    $elem.find('a').each((_: number, link: Element) => {
+    // 处理链接
+    $elem.find('a').each((_: number, link: CheerioElement) => {
       const $link = $(link);
-      if (!$link.attr('href')) {
-        $link.removeAttr('href');
-      }
-      $link.attr('rel', 'noopener');
-      if ($link.attr('target') === '_blank') {
+      const href = $link.attr('href');
+      
+      if (href?.startsWith('http')) {
+        $link.attr('target', '_blank');
         $link.attr('rel', 'noopener noreferrer');
       }
     });

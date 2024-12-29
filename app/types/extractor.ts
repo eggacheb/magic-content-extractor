@@ -1,4 +1,4 @@
-import type { Root, Element, AnyNode } from 'cheerio';
+import { type CheerioAPI, type CheerioNode } from './cheerio';
 
 export interface ExtractResult {
   title: string;
@@ -36,8 +36,8 @@ export type WebsiteType = 'article' | 'forum' | 'weixin';
 export interface SiteExtractor {
   canHandle(url: string): boolean;
   getCustomSelectors(): string[];
-  preProcess($: Root): void;
-  postProcess($: Root): void;
+  preProcess($: CheerioAPI): void;
+  postProcess($: CheerioAPI): void;
 }
 
 // 主要内容选择器
