@@ -23,16 +23,12 @@ export class WeixinExtractor extends BaseExtractor {
    */
   protected getCustomSelectors(): string[] {
     return [
-      // 文章主体选择器
       '#js_content',
       '.rich_media_content',
-      // 备用选择器
-      '#img-content',
       '.rich_media_area_primary',
       '.rich_media_area_primary_inner',
-      // 兼容旧版
-      '#page-content',
-      '.content'
+      '#content_html',
+      '.article-content'
     ];
   }
 
@@ -58,6 +54,16 @@ export class WeixinExtractor extends BaseExtractor {
 
     // 处理样式
     this.processStyles($);
+
+    // 调试日志
+    console.log('Available content elements:');
+    this.getCustomSelectors().forEach(selector => {
+      const elements = $(selector);
+      console.log(`${selector}: ${elements.length} elements found`);
+      if (elements.length > 0) {
+        console.log(`Content preview for ${selector}:`, elements.first().text().slice(0, 100));
+      }
+    });
   }
 
   /**
