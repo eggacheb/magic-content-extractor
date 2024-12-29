@@ -1,4 +1,4 @@
-import { type CheerioAPI, type CheerioNode } from '../@types/cheerio';
+import { type CheerioAPI, type CheerioNode } from '@/types/cheerio';
 
 export interface ExtractResult {
   title: string;

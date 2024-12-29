@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { type CheerioAPI, type CheerioNode, type CheerioElement, type AnyNode, asCheerioNode, asElement } from '../@types/cheerio';
+import { type CheerioAPI, type CheerioNode, type CheerioElement, type AnyNode, asCheerioNode, asElement } from '@/types/cheerio';
 import { ExtractResult, ExtractorOptions, CONTENT_SELECTORS, NOISE_SELECTORS } from '../types/extractor';
 import { calculateTextLength, cleanHtml, scoreElement } from '../utils/extractor';
 import { TitleExtractor } from './extractors/TitleExtractor';
